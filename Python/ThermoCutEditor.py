@@ -37,7 +37,45 @@ class ImageEdit:
         return crossings    
             
     def DividePixels(self):
-        print(self.FindCrossings())
+        crossing_points = self.FindCrossings()
+        x1 = min([i[1] for i in crossing_points])
+        x2 = max([i[1] for i in crossing_points])
+        y1 = crossing_points[np.argmin([i[1] for i in crossing_points])][0]
+        y2 = crossing_points[np.argmax([i[1] for i in crossing_points])][0]
+       
+        new_segment = np.zeros((640,480))
+        if y1 < y2:
+            for i in self.shape_coordinates:
+                x_line = self.CountXForGivenY(i[0],x1, x2, y1, y2) #self.FindXForGivenY(j)
+                y_line = self.CountYForGivenX(i[1],x1, x2, y1, y2)
+                print(i[0], " > ", x_line, i[1], " < ", y_line)
+                new_segment[i[0],i[1]] = 1
+                if i[0] > x_line or i[1] < y_line:
+                    new_segment[i[0],i[1]] = 1
+        
+        self.CreateOutline(new_segment, 0)
+        print("done", np.amax(new_segment))
+        cv2.imshow('Window',self.image)
+        
+    def CountXForGivenY(self, given_y, x1, x2, y1, y2):
+        k = (y2-y1)/(x2-x1)
+        x = (given_y-y1)/k
+        return x
+    
+    def CountYForGivenX(self, given_x, x1, x2, y1, y2):
+        k = (y2-y1)/(x2-x1)
+        y = k*given_x + y1
+        return y
+    
+    def FindXForGivenY(self, given_y):
+        for cntr, i in enumerate(self.cut_line[0][0]):
+            if i == given_y:
+                return self.cut_line[0][1][cntr]
+    
+    def FindYForGivenX(self, given_x):
+        for cntr, i in enumerate(self.cut_line[0][1]):
+            if i == given_x:
+                return self.cut_line[0][0][cntr]
     
     def InteractiveDrawing(self,event,x,y,flags,param):
         global ix,iy,drawing, mode
@@ -84,31 +122,32 @@ class ImageEdit:
         if s + '_' + segment + "_" + side + '.txt' in os.listdir(self.text_directory):
             mask = np.genfromtxt(os.path.join(self.text_directory,s + '_' + segment + "_" + side + '.txt'),delimiter='\t')
             mask_upright = io.RotateImageRight(mask)
-            self.CreateOutline(mask_upright)
+            self.CreateOutline(mask_upright, 255)
             # cv2.circle(mask,(240,320),280,1,thickness=-1)
             
             # res = cv2.bitwise_not(self.image,self.image,mask = np.int8(mask_outer))
             cv2.imshow('Window',self.image)
     
-    def CreateOutline(self, shape):
+    def CreateOutline(self, shape, shade):
         self.active_outline = []
+        self.shape_coordinates = []
         for i in np.arange(0,len(shape[:,1])):
-                for j in np.arange(0,len(shape[1,:]) - 1):
-                    if shape[i,j]==0 and shape[i,j+1]!=0:
-                        self.image[i,j]=255
-                        self.active_outline.append((i,j))
-                    if shape[i,j]==0 and shape[i,j-1]!=0:
-                        self.image[i,j]=255
-                        self.active_outline.append((i,j))
+            for j in np.arange(0,len(shape[1,:]) - 1):
+                if shape[i,j] != 0:
+                    self.shape_coordinates.append((i,j))
+                # elif shape[i,j+1]!=0 or shape[i,j-1]!=0:
+                    self.image[i,j]=shade
+                    self.active_outline.append((i,j))
+                    
         for i in np.arange(0,len(shape[:,1]) - 1):
-                for j in np.arange(0,len(shape[1,:])):
-                    if shape[i,j]==0 and shape[i+1,j]!=0:
-                        self.image[i,j]=255
-                        self.active_outline.append((i,j))
-                    if shape[i,j]==0 and shape[i-1,j]!=0:
-                        self.image[i,j]=255
-                        self.active_outline.append((i,j))
-    
+            for j in np.arange(0,len(shape[1,:])):
+                if shape[i,j] != 0:
+                    self.shape_coordinates.append((i,j))
+                # elif shape[i+1,j]!=0 or shape[i-1,j]!=0:
+                    self.image[i,j]=shade
+                    self.active_outline.append((i,j))
+                    
+                    
     def GetEnd(self, segment):
         if segment in ['TO', 'N', 'FH']:
             return 'na'
@@ -121,18 +160,19 @@ class ImageEdit:
             self.CreateWindow()
             
             cv2.setMouseCallback('Window',self.InteractiveDrawing)
-            k=cv2.waitKey(1)&0xFF
+            key=cv2.waitKey(1)&0xFF
+            last_key = key
             
-            if k == ord("p"):
+            if key == ord("p"):
                 cv2.imshow('Window',self.image)
             
-            if k == ord("s"):
+            if key == ord("s"):
                 self.DrawSegment()
             
-            if k == ord("c"):
+            if key == ord("c"):
                 self.CutSegment()
-            
-            if k==27:
+                        
+            if key==27:
                 break
 
 
