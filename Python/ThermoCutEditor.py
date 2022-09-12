@@ -134,6 +134,12 @@ class ImageEdit:
         if event == cv2.EVENT_LBUTTONUP and self.is_cut == True:
             if self.subsegment_a[y,x] != 0:
                 print("sega")
+                self.data_to_write = io.RotateImageLeft(self.subsegment_a)
+                
+                np.savetxt(r"C:\Users\Michal\ThermoCutter\Python\array.txt",
+                           self.data_to_write, fmt='%s', delimiter='\t', encoding = 'utf-8')
+                
+                
             if self.subsegment_b[y,x] != 0:
                 print("segb")
                 
