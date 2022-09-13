@@ -77,7 +77,6 @@ class ImageEdit:
                 x_line = self.ExtrapolateForGivenY(fit2, y_coord)
                 y_line = self.ExtrapolateForGivenX(fit, x_coord)
                                 
-                print(x_coord, x_line, y_coord, y_line)
                 self.line_x.append(int(y_line))
                 self.line_y.append(int(x_line))
                 if y_coord < y_line or x_coord < x_line:
@@ -134,19 +133,22 @@ class ImageEdit:
         if event == cv2.EVENT_LBUTTONUP and self.is_cut == True:
             if self.subsegment_a[y,x] != 0:
                 print("sega")
-                self.data_to_write = io.RotateImageLeft(self.subsegment_a)
+                data_to_write = io.RotateImageLeft(self.subsegment_a)
                 
-                np.savetxt(r"C:\Users\Michal\ThermoCutter\Python\array.txt",
-                           self.data_to_write, fmt='%s', delimiter='\t', encoding = 'utf-8')
+                # file_name = input("name of the file")
+                # np.savetxt(os.path.join(r"C:\Users\Michal\kamera", self.mask_name),
+                #            self.data_to_write, fmt='%s', delimiter='\t', encoding = 'utf-8')
                 
+                self.SaveSubsegment(data_to_write)
                 
             if self.subsegment_b[y,x] != 0:
                 print("segb")
+                data_to_write = io.RotateImageLeft(self.subsegment_b)
+                self.SaveSubsegment(data_to_write)
                 
         if event == cv2.EVENT_MOUSEMOVE:
            
             if self.subsegment_a[y,x] != 0 or self.subsegment_b[y,x] != 0:
-                print("aye")
                 win32api.SetCursor(win32api.LoadCursor(0, win32con.IDC_HAND))
                 
             else:
@@ -154,7 +156,10 @@ class ImageEdit:
         
     def CutSegment(self):
         self.DividePixels()
-                
+         
+    def SaveSubsegment(self, data_to_save):
+        np.savetxt(os.path.join(r"C:\Users\Michal\kamera", self.mask_name),
+                   data_to_save, fmt='%s', delimiter='\t', encoding = 'utf-8')
     
     def DrawAllSegments(self):
         for segment in ['A','FA','H','N','S','T','TO']:
@@ -168,7 +173,8 @@ class ImageEdit:
         r = os.path.basename(self.image_path)
         s = os.path.splitext(r)[0]
         if s + '_' + segment + "_" + side + '.txt' in os.listdir(self.text_directory):
-            mask = np.genfromtxt(os.path.join(self.text_directory,s + '_' + segment + "_" + side + '.txt'),delimiter='\t')
+            self.mask_name = s + '_' + segment + "_" + side + '.txt'
+            mask = np.genfromtxt(os.path.join(self.text_directory,self.mask_name),delimiter='\t')
             mask_upright = io.RotateImageRight(mask)
             self.CreateOutline(mask_upright, 255)
             # cv2.circle(mask,(240,320),280,1,thickness=-1)
@@ -202,6 +208,19 @@ class ImageEdit:
         else:
             return 'R'
     
+    def Restart(self):
+        cv2.destroyAllWindows()
+        self.image = cv2.imread(self.image_path)
+        self.CreateWindow()
+        self.DrawAllSegments()
+        self.is_cut = False
+        cv2.setMouseCallback('Window',self.MouseEvents)
+        self.cut_line = []
+        self.line_coordinates = []
+        self.subsegment_a = np.zeros((640,480))
+        self.subsegment_b = np.zeros((640,480))
+        
+    
     def EndlessCycle(self):
         self.DrawAllSegments()
         while(1):
@@ -232,7 +251,10 @@ class ImageEdit:
             
             if key == ord("c"):
                 self.CutSegment()
-                        
+            
+            if key == ord("o"):
+                self.Restart()
+            
             if key==27:
                 break
 
