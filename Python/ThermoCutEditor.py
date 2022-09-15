@@ -24,6 +24,8 @@ class ImageEdit:
         self.is_cut = False
         self.subsegment_a = np.zeros((640,480))
         self.subsegment_b = np.zeros((640,480))
+        
+        self.original_point = None
         # self.CreateWindow()
         self.EndlessCycle()
     
@@ -101,6 +103,24 @@ class ImageEdit:
         line = np.poly1d(fit)
         new_point = line(given_x)
         return new_point
+    
+    def MouseEvents02(self,event,x,y,flags,param):
+        
+        if event==cv2.EVENT_LBUTTONUP and self.original_point == None:
+            for point in self.filtered_coordinates:
+                # print("aha", x, y, point.x, point.y)
+                if abs(x - point.x) < 5 and  abs(y - point.y) < 5:
+                    print("aka", x, y, point.x, point.y)
+                    # self.image[y,x] = 0
+                    self.original_point = point
+                    break
+        
+        elif event == cv2.EVENT_LBUTTONUP and self.original_point != None:
+            cv2.circle(self.image,(x,y),1,(0,0,255),-1)
+            # cv2.circle(self.image,(self.original_point.x,self.original_point.y),
+            #            1,(255,255,255),-1)
+            self.original_point.Recolor()
+            print("aye")
     
     def MouseEvents(self,event,x,y,flags,param):
         global ix,iy,drawing, mode
@@ -183,7 +203,7 @@ class ImageEdit:
             cv2.imshow('Window',self.image)
     
     def CreateOutline(self, shape):
-        io.CreateOutlineCV(self.image, shape)
+        self.filtered_coordinates = io.CreateOutlineCV(self.image, shape)
        
     def GetEnd(self, segment):
         if segment in ['TO', 'N', 'FH']:
@@ -204,13 +224,17 @@ class ImageEdit:
         self.subsegment_b = np.zeros((640,480))
         
     
+    def SwitchTool(self):
+        cv2.setMouseCallback('Window',self.MouseEvents02)
+        
     def EndlessCycle(self):
         self.DrawAllSegments()
+        cv2.setMouseCallback('Window',self.MouseEvents)
         while(1):
             result = cv2.addWeighted(self.image, 0.5, self.image, 1 - 0.5, 0)
             self.CreateWindow()
             
-            cv2.setMouseCallback('Window',self.MouseEvents)
+            
             key=cv2.waitKey(1)&0xFF
             last_key = key
             
@@ -237,6 +261,9 @@ class ImageEdit:
             
             if key == ord("o"):
                 self.Restart()
+            
+            if key == ord('q'):
+                self.SwitchTool()
             
             if key==27:
                 break
