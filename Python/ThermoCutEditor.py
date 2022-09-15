@@ -176,32 +176,15 @@ class ImageEdit:
             self.mask_name = s + '_' + segment + "_" + side + '.txt'
             mask = np.genfromtxt(os.path.join(self.text_directory,self.mask_name),delimiter='\t')
             mask_upright = io.RotateImageRight(mask)
-            self.CreateOutline(mask_upright, 255)
+            self.CreateOutline(mask_upright)
             # cv2.circle(mask,(240,320),280,1,thickness=-1)
             
             # res = cv2.bitwise_not(self.image,self.image,mask = np.int8(mask_outer))
             cv2.imshow('Window',self.image)
     
-    def CreateOutline(self, shape, shade):
-        self.active_outline = []
-        self.shape_coordinates = []
-        for i in np.arange(0,len(shape[:,1])):
-            for j in np.arange(0,len(shape[1,:]) - 1):
-                if shape[i,j] != 0:
-                    self.shape_coordinates.append((i,j))
-                # elif shape[i,j+1]!=0 or shape[i,j-1]!=0:
-                    self.image[i,j]=shade
-                    self.active_outline.append((i,j))
-                    
-        for i in np.arange(0,len(shape[:,1]) - 1):
-            for j in np.arange(0,len(shape[1,:])):
-                if shape[i,j] != 0:
-                    self.shape_coordinates.append((i,j))
-                # elif shape[i+1,j]!=0 or shape[i-1,j]!=0:
-                    self.image[i,j]=shade
-                    self.active_outline.append((i,j))
-                    
-                    
+    def CreateOutline(self, shape):
+        io.CreateOutlineCV(self.image, shape)
+       
     def GetEnd(self, segment):
         if segment in ['TO', 'N', 'FH']:
             return 'na'
