@@ -11,13 +11,16 @@ from skimage.draw import line
 from scipy.spatial import ConvexHull
 import win32api
 import win32con
+import copy
 
 class ImageEdit:
     def __init__(self, image_path, text_directory):
         self.text_directory = text_directory
         self.image_path = image_path
         self.mode = True
-        self.image = cv2.imread(image_path)
+        self.image_underlay = cv2.imread(image_path)
+        self.image_overlay = np.zeros(self.image_underlay.shape, np.uint8)
+        
         self.line_coordinates = []
         self.cut_line = []
         self.active_outline = []
@@ -106,21 +109,26 @@ class ImageEdit:
     
     def MouseEvents02(self,event,x,y,flags,param):
         
-        if event==cv2.EVENT_LBUTTONUP and self.original_point == None:
-            for point in self.filtered_coordinates:
-                # print("aha", x, y, point.x, point.y)
-                if abs(x - point.x) < 5 and  abs(y - point.y) < 5:
-                    print("aka", x, y, point.x, point.y)
-                    # self.image[y,x] = 0
-                    self.original_point = point
-                    break
-        
-        elif event == cv2.EVENT_LBUTTONUP and self.original_point != None:
+        if event==cv2.EVENT_LBUTTONUP and self.is_cut == False:
+            if self.mode==True:
+                cv2.circle(self.image,(x,y),1,(0,0,255),-1)
+                if self.line_coordinates !=[]:
+                    # cv2.line(self.image,(self.line_coordinates[-1][0],self.line_coordinates[-1][1]),
+                    #          (x,y),color = (0, 125, 0, 100), thickness = 5)
+                    
+                    rr, cc = line(self.line_coordinates[-1][1], self.line_coordinates[-1][0], y, x)
+                    self.image[rr, cc] = 1
+                    
+                    self.cut_line.append([rr,cc])
+                    
+                self.line_coordinates.append([x,y])
+        if event==cv2.EVENT_MBUTTONUP:
+            x,y=self.line_coordinates[0][0],self.line_coordinates[0][1]
             cv2.circle(self.image,(x,y),1,(0,0,255),-1)
-            # cv2.circle(self.image,(self.original_point.x,self.original_point.y),
-            #            1,(255,255,255),-1)
-            self.original_point.Recolor()
-            print("aye")
+            if self.line_coordinates !=[]:
+                cv2.line(self.image,(self.line_coordinates[-1][0],self.line_coordinates[-1][1]), (x,y),
+                         color = (0, 125, 0), thickness = 1)
+            self.line_coordinates.append([x,y])
     
     def MouseEvents(self,event,x,y,flags,param):
         global ix,iy,drawing, mode
@@ -145,7 +153,7 @@ class ImageEdit:
             cv2.circle(self.image,(x,y),1,(0,0,255),-1)
             if self.line_coordinates !=[]:
                 cv2.line(self.image,(self.line_coordinates[-1][0],self.line_coordinates[-1][1]), (x,y),
-                         color = (0, 125, 0), thickness = 5)
+                         color = (0, 125, 0), thickness = 2)
             self.line_coordinates.append([x,y])
             drawing=False
             
@@ -197,13 +205,15 @@ class ImageEdit:
             mask = np.genfromtxt(os.path.join(self.text_directory,self.mask_name),delimiter='\t')
             mask_upright = io.RotateImageRight(mask)
             self.CreateOutline(mask_upright)
+            self.active_segment_points = io.GetCoordinatesOfSegment(mask_upright)
             # cv2.circle(mask,(240,320),280,1,thickness=-1)
             
             # res = cv2.bitwise_not(self.image,self.image,mask = np.int8(mask_outer))
+            self.image = cv2.addWeighted(self.image_underlay,0.9,self.image_overlay,0.4,0)
             cv2.imshow('Window',self.image)
     
     def CreateOutline(self, shape):
-        self.filtered_coordinates = io.CreateOutlineCV(self.image, shape)
+        self.filtered_coordinates = io.CreateOutlineCV(self.image_overlay, shape)
        
     def GetEnd(self, segment):
         if segment in ['TO', 'N', 'FH']:
@@ -226,7 +236,57 @@ class ImageEdit:
     
     def SwitchTool(self):
         cv2.setMouseCallback('Window',self.MouseEvents02)
+    
+    def CutIn(self):
+        self.Cut()
+        print("do none", len(self.active_segment_points), len(self.values[1]))
+        new_segment_points = copy.deepcopy(self.active_segment_points)
         
+        for x,y in zip(self.values[0], self.values[1]):
+            is_already_in_segment = False
+            for segment_point in self.active_segment_points:
+                if x == segment_point[0] and y == segment_point[1]:
+                    is_already_in_segment = True
+                
+            if is_already_in_segment == False:
+                print("now")
+                new_segment_points.append([x,y])
+              
+        for i in new_segment_points:
+            io.PaintPixel(self.image_overlay, [i[1],i[0]], (255,255,255))
+        
+        print("zde")
+        self.image = cv2.addWeighted(self.image_underlay,0.9,self.image_overlay,0.4,0)
+        cv2.imshow('Window',self.image)
+        
+        
+    def CutOut(self):
+        
+        self.Cut()
+        new_segment_points = []
+                
+        for segment_point in self.active_segment_points:
+            is_already_in_segment = False
+            for x,y in zip(self.values[0], self.values[1]):
+                if x == segment_point[0] and y == segment_point[1]:
+                    is_already_in_segment = True
+            
+            if is_already_in_segment == False:
+                new_segment_points.append(segment_point)
+
+        for i in new_segment_points:
+            io.PaintPixel(self.image_overlay, [i[1],i[0]], (255,255,255))
+        
+        print("zde")
+        self.image = cv2.addWeighted(self.image_underlay,0.9,self.image_overlay,0.4,0)
+        cv2.imshow('Window',self.image)
+    
+    def Cut(self):
+        mask = np.zeros((self.image.shape), dtype=np.uint8)
+        points = np.array( [self.line_coordinates], dtype=np.int32 )
+        cv2.fillPoly(mask, points, (255,255,255))
+        self.values = np.where((mask == (255,255,255)).all(axis=2))
+            
     def EndlessCycle(self):
         self.DrawAllSegments()
         cv2.setMouseCallback('Window',self.MouseEvents)
@@ -264,6 +324,12 @@ class ImageEdit:
             
             if key == ord('q'):
                 self.SwitchTool()
+            
+            if key == ord('z'):
+                self.CutIn()
+            
+            if key == ord('m'):
+                self.CutOut()
             
             if key==27:
                 break
