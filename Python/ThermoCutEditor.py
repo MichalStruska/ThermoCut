@@ -45,69 +45,8 @@ class ImageEdit:
                 if cutline_x == outline_point[0] and cutline_y == outline_point[1]:
                     crossings.append((cutline_x, cutline_y))
         return crossings    
-            
-    def DividePixels(self):
-        crossing_points = self.FindCrossings()
-        x1 = min([i[1] for i in crossing_points])
-        x2 = max([i[1] for i in crossing_points])
-        y1 = crossing_points[np.argmin([i[1] for i in crossing_points])][0]
-        y2 = crossing_points[np.argmax([i[1] for i in crossing_points])][0]
-       
-        self.line_x = []
-        self.line_y = []
-       
-        fit = np.polyfit(self.cut_line[0][1], self.cut_line[0][0], 1)
-        fit2 = np.polyfit(self.cut_line[0][0], self.cut_line[0][1], 1)
-        if y1 < y2:
-        
-            for i in self.shape_coordinates:
-                y_coord = i[0]
-                x_coord = i[1]
-                
-                x_line = self.ExtrapolateForGivenY(fit2, y_coord)
-                y_line = self.ExtrapolateForGivenX(fit, x_coord)
-                                
-                self.line_x.append(int(y_line))
-                self.line_y.append(int(x_line))
-                if y_coord < y_line or x_coord > x_line:
-                    self.subsegment_a[y_coord, x_coord] = 1
-                else:
-                    self.subsegment_b[y_coord, x_coord] = 1
-        
-        elif y1 >= y2:
-            for i in self.shape_coordinates:
-                y_coord = i[0]
-                x_coord = i[1]
-                
-                x_line = self.ExtrapolateForGivenY(fit2, y_coord)
-                y_line = self.ExtrapolateForGivenX(fit, x_coord)
-                                
-                self.line_x.append(int(y_line))
-                self.line_y.append(int(x_line))
-                if y_coord < y_line or x_coord < x_line:
-                    self.subsegment_a[y_coord, x_coord] = 1
-                else:
-                    self.subsegment_b[y_coord, x_coord] = 1 
-                
-        self.CreateOutline(self.subsegment_a, 0)
-        self.CreateOutline(self.subsegment_b, 125)
-        print("done")
-        self.is_cut = True
-        # cv2.setMouseCallback('Window',self.HoverOverSubsegment)
-        cv2.imshow('Window',self.image)
-        
-    
-    def ExtrapolateForGivenY(self, fit, given_y):
-        line = np.poly1d(fit)
-        new_point = line(given_y)
-        return new_point
-    
-    def ExtrapolateForGivenX(self, fit, given_x):        
-        line = np.poly1d(fit)
-        new_point = line(given_x)
-        return new_point
-    
-    def MouseEvents02(self,event,x,y,flags,param):
+   
+    def MouseEvents(self,event,x,y,flags,param):
         
         if event==cv2.EVENT_LBUTTONUP and self.is_cut == False:
             if self.mode==True:
@@ -125,77 +64,29 @@ class ImageEdit:
         if event==cv2.EVENT_MBUTTONUP:
             x,y=self.line_coordinates[0][0],self.line_coordinates[0][1]
             cv2.circle(self.image,(x,y),1,(0,0,255),-1)
-            if self.line_coordinates !=[]:
+            if self.line_coordinates != []:
                 cv2.line(self.image,(self.line_coordinates[-1][0],self.line_coordinates[-1][1]), (x,y),
                          color = (0, 125, 0), thickness = 1)
             self.line_coordinates.append([x,y])
     
-    def MouseEvents(self,event,x,y,flags,param):
-        global ix,iy,drawing, mode
-        if event==cv2.EVENT_LBUTTONDOWN:
-            drawing=True
-        
-        if event==cv2.EVENT_LBUTTONUP and self.is_cut == False:
-            if self.mode==True:
-                cv2.circle(self.image,(x,y),1,(0,0,255),-1)
-                if self.line_coordinates !=[]:
-                    # cv2.line(self.image,(self.line_coordinates[-1][0],self.line_coordinates[-1][1]),
-                    #          (x,y),color = (0, 125, 0, 100), thickness = 5)
-                    
-                    rr, cc = line(self.line_coordinates[-1][1], self.line_coordinates[-1][0], y, x)
-                    self.image[rr, cc] = 1
-                    
-                    self.cut_line.append([rr,cc])
-                    
-                self.line_coordinates.append([x,y])
-        if event==cv2.EVENT_RBUTTONDOWN:
-            x,y=self.line_coordinates[0][0],self.line_coordinates[0][1]
-            cv2.circle(self.image,(x,y),1,(0,0,255),-1)
-            if self.line_coordinates !=[]:
-                cv2.line(self.image,(self.line_coordinates[-1][0],self.line_coordinates[-1][1]), (x,y),
-                         color = (0, 125, 0), thickness = 2)
-            self.line_coordinates.append([x,y])
-            drawing=False
-            
-            
-        if event == cv2.EVENT_LBUTTONUP and self.is_cut == True:
-            if self.subsegment_a[y,x] != 0:
-                print("sega")
-                data_to_write = io.RotateImageLeft(self.subsegment_a)
-                
-                # file_name = input("name of the file")
-                # np.savetxt(os.path.join(r"C:\Users\Michal\kamera", self.mask_name),
-                #            self.data_to_write, fmt='%s', delimiter='\t', encoding = 'utf-8')
-                
-                self.SaveSubsegment(data_to_write)
-                
-            if self.subsegment_b[y,x] != 0:
-                print("segb")
-                data_to_write = io.RotateImageLeft(self.subsegment_b)
-                self.SaveSubsegment(data_to_write)
-                
-        if event == cv2.EVENT_MOUSEMOVE:
-           
-            if self.subsegment_a[y,x] != 0 or self.subsegment_b[y,x] != 0:
-                win32api.SetCursor(win32api.LoadCursor(0, win32con.IDC_HAND))
-                
-            else:
-                win32api.SetCursor(win32api.LoadCursor(0, win32con.IDC_ARROW))
-        
     def CutSegment(self):
         self.DividePixels()
          
-    def SaveSubsegment(self, data_to_save):
-        np.savetxt(os.path.join(r"C:\Users\Michal\kamera", self.mask_name),
-                   data_to_save, fmt='%s', delimiter='\t', encoding = 'utf-8')
+    def SaveSubsegment(self):
+        subsegment_array = np.zeros((640,480))
+        for coords in self.subsegment_points:
+            subsegment_array[coords[0], coords[1]] = 1
+        
+        subsegment_array_rotated = io.RotateImageLeft(subsegment_array)
+        np.savetxt(os.path.join(r"C:\Users\Michal\kamera", self.mask_name.split('.')[0] + "_new.txt"),
+                   subsegment_array_rotated, fmt='%s', delimiter='\t', encoding = 'utf-8')
     
     def DrawAllSegments(self):
         for segment in ['A','FA','H','N','S','T','TO']:
             self.DrawSegment(segment)
         
     def DrawSegment(self, segment):
-        # pripony1 = ['A','FA','H','N','S','T','TO']
-        # for segment in pripony1:
+     
         side = self.GetEnd(segment)
         
         r = os.path.basename(self.image_path)
@@ -206,9 +97,7 @@ class ImageEdit:
             mask_upright = io.RotateImageRight(mask)
             self.CreateOutline(mask_upright)
             self.active_segment_points = io.GetCoordinatesOfSegment(mask_upright)
-            # cv2.circle(mask,(240,320),280,1,thickness=-1)
-            
-            # res = cv2.bitwise_not(self.image,self.image,mask = np.int8(mask_outer))
+           
             self.image = cv2.addWeighted(self.image_underlay,0.9,self.image_overlay,0.4,0)
             cv2.imshow('Window',self.image)
     
@@ -232,15 +121,10 @@ class ImageEdit:
         self.line_coordinates = []
         self.subsegment_a = np.zeros((640,480))
         self.subsegment_b = np.zeros((640,480))
-        
-    
-    def SwitchTool(self):
-        cv2.setMouseCallback('Window',self.MouseEvents02)
-    
+      
     def CutIn(self):
         self.Cut()
-        print("do none", len(self.active_segment_points), len(self.values[1]))
-        new_segment_points = copy.deepcopy(self.active_segment_points)
+        self.subsegment_points = copy.deepcopy(self.active_segment_points)
         
         for x,y in zip(self.values[0], self.values[1]):
             is_already_in_segment = False
@@ -250,20 +134,17 @@ class ImageEdit:
                 
             if is_already_in_segment == False:
                 print("now")
-                new_segment_points.append([x,y])
+                self.subsegment_points.append([x,y])
               
-        for i in new_segment_points:
+        for i in self.subsegment_points:
             io.PaintPixel(self.image_overlay, [i[1],i[0]], (255,255,255))
         
-        print("zde")
         self.image = cv2.addWeighted(self.image_underlay,0.9,self.image_overlay,0.4,0)
         cv2.imshow('Window',self.image)
-        
-        
-    def CutOut(self):
-        
+             
+    def CutOut(self):      
         self.Cut()
-        new_segment_points = []
+        self.subsegment_points = []
                 
         for segment_point in self.active_segment_points:
             is_already_in_segment = False
@@ -272,12 +153,11 @@ class ImageEdit:
                     is_already_in_segment = True
             
             if is_already_in_segment == False:
-                new_segment_points.append(segment_point)
+                self.subsegment_points.append(segment_point)
 
-        for i in new_segment_points:
+        for i in self.subsegment_points:
             io.PaintPixel(self.image_overlay, [i[1],i[0]], (255,255,255))
         
-        print("zde")
         self.image = cv2.addWeighted(self.image_underlay,0.9,self.image_overlay,0.4,0)
         cv2.imshow('Window',self.image)
     
@@ -290,6 +170,7 @@ class ImageEdit:
     def EndlessCycle(self):
         self.DrawAllSegments()
         cv2.setMouseCallback('Window',self.MouseEvents)
+        self.key_pressed = False
         while(1):
             result = cv2.addWeighted(self.image, 0.5, self.image, 1 - 0.5, 0)
             self.CreateWindow()
@@ -301,6 +182,12 @@ class ImageEdit:
             if key == ord("p"):
                 cv2.imshow('Window',self.image)
             
+            if key == ord('u'):
+                self.key_pressed = True
+            
+            if key == ord('w'):
+                self.SaveSubsegment()
+           
             if key == ord("s"):
                 self.DrawSegment("S")
             if key == ord("a"):
@@ -321,9 +208,6 @@ class ImageEdit:
             
             if key == ord("o"):
                 self.Restart()
-            
-            if key == ord('q'):
-                self.SwitchTool()
             
             if key == ord('z'):
                 self.CutIn()
