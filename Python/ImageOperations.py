@@ -2,17 +2,6 @@ import numpy as np
 import cv2
 from skimage.draw import line
 
-class PointInImage:
-    def __init__(self, image, x, y, original_values):
-        self.x = x
-        self.y = y
-        self.original_values = original_values
-        self.image = image
-
-    def Recolor(self):
-        print("recolor")
-        self.image[self.y-2:self.y+2, self.x-2:self.x+2] = self.original_values
-
 def RotateImageLeft(original_array):
     rotated_array = np.asarray(list(reversed(list(zip(*original_array)))))
     return rotated_array
@@ -44,18 +33,13 @@ def ColorTheOutline(image, outline_coordinates):
     color = [0,34,252]
     filtered_coordinates = []
     for point_coordinate in np.arange(1, len(outline_coordinates),1):
-        # cv2.line(image,(outline_coordinates[point_coordinate-1][0],outline_coordinates[point_coordinate-1][1]),
-        #           (outline_coordinates[point_coordinate][0],outline_coordinates[point_coordinate][1]),
-        #           color = (0, 125, 0, 100), thickness = 1)
+        
         rr, cc = line(outline_coordinates[point_coordinate-1][1],outline_coordinates[point_coordinate-1][0],
                       outline_coordinates[point_coordinate][1], outline_coordinates[point_coordinate][0])
-        # cv2.circle(image,(rr[0],cc[0]),1,(0,0,255),-1)
         PaintPixel(image, (rr[0],cc[0]), (0,0,255))
-        vicinity = image[rr[0]-2:rr[0]+2, cc[0]-2:cc[0]+2]
-        filtered_coordinates.append(PointInImage(image, rr[0],cc[0], vicinity))
+        filtered_coordinates.append([cc[0],rr[0]])
         
-        # image[rr, cc] = 1
-    return filtered_coordinates
+    return filtered_coordinates 
 
 def PaintPixel(image, coordinates, color):
     image[coordinates[1], coordinates[0]]=color
