@@ -89,12 +89,13 @@ class ImageEdit:
             subsegment_array[coords[0], coords[1]] = 1
         
         subsegment_array_rotated = io.RotateImageLeft(subsegment_array)
+        original_segment_rotated = io.RotateImageLeft(self.original_segments[self.active_segment_name])
         
         save_directory = r"C:\Users\Michal\kamera\originals"
         self.IfFolderNotExistCreateIt(save_directory)
         
         np.savetxt(os.path.join(save_directory, self.mask_names[self.active_segment_name]),
-                   self.original_segment, fmt='%s', delimiter='\t', encoding = 'utf-8')
+                   original_segment_rotated, fmt='%s', delimiter='\t', encoding = 'utf-8')
         
         np.savetxt(os.path.join(r"C:\Users\Michal\kamera", self.mask_names[self.active_segment_name]),
                    subsegment_array_rotated, fmt='%s', delimiter='\t', encoding = 'utf-8')
@@ -162,42 +163,52 @@ class ImageEdit:
       
     def CutIn(self):
         self.Cut()
-        self.subsegment_points = copy.deepcopy(self.active_segment_points)
-        self.subsegment_array = copy.deepcopy(self.original_segments[self.active_segment_name])
         
-        for x,y in zip(self.values[0], self.values[1]):
-            is_already_in_segment = False
-            for segment_point in self.active_segment_points:
-                if x == segment_point[0] and y == segment_point[1]:
-                    is_already_in_segment = True
-                
-            if is_already_in_segment == False:
-                self.subsegment_points.append([x,y])
-                self.subsegment_array[x,y] = 1
-       
-        self.MemorizeNewSegment(self.subsegment_array, io.CreateOutlineCV(self.image_overlay,self.subsegment_array))
-        self.RedrawOutlines()
-        self.EndOperation()
-    
+        try:
+            self.subsegment_points = copy.deepcopy(self.active_segment_points)
+            self.subsegment_array = copy.deepcopy(self.original_segments[self.active_segment_name])
+            
+            for x,y in zip(self.values[0], self.values[1]):
+                is_already_in_segment = False
+                for segment_point in self.active_segment_points:
+                    if x == segment_point[0] and y == segment_point[1]:
+                        is_already_in_segment = True
+                    
+                if is_already_in_segment == False:
+                    self.subsegment_points.append([x,y])
+                    self.subsegment_array[x,y] = 1
+           
+            self.MemorizeNewSegment(self.subsegment_array, io.CreateOutlineCV(self.image_overlay,self.subsegment_array))
+            self.RedrawOutlines()
+            self.EndOperation()
+        except Exception as e:
+            print(e)
+            print("probably no segment selected")
+        
     def CutOut(self):      
         self.Cut()
         self.subsegment_points = []
         self.subsegment_array = np.zeros((640,480))
                 
-        for segment_point in self.active_segment_points:
-            is_already_in_segment = False
-            for x,y in zip(self.values[0], self.values[1]):
-                if x == segment_point[0] and y == segment_point[1]:
-                    is_already_in_segment = True
+        try:
+            for segment_point in self.active_segment_points:
+                is_already_in_segment = False
+                for x,y in zip(self.values[0], self.values[1]):
+                    if x == segment_point[0] and y == segment_point[1]:
+                        is_already_in_segment = True
+                
+                if is_already_in_segment == False:
+                    self.subsegment_points.append(segment_point)
+                    print(segment_point[0], segment_point[1])
+                    self.subsegment_array[segment_point[0], segment_point[1]] = 1
             
-            if is_already_in_segment == False:
-                self.subsegment_points.append(segment_point)
-                print(segment_point[0], segment_point[1])
-                self.subsegment_array[segment_point[0], segment_point[1]] = 1
+            self.MemorizeNewSegment(self.subsegment_array, io.CreateOutlineCV(self.image_overlay,self.subsegment_array))
+            self.RedrawOutlines()
+            self.EndOperation()
         
-        self.MemorizeNewSegment(self.subsegment_array, io.CreateOutlineCV(self.image_overlay,self.subsegment_array))
-        self.RedrawOutlines()
-        self.EndOperation()
+        except Exception as e:
+            print(e)
+            print("probably no segment selected")
     
     def MemorizeNewSegment(self, map_array, outline_coordinates):
         self.active_segments[self.active_segment_name] = map_array
@@ -210,6 +221,8 @@ class ImageEdit:
         self.values = np.where((mask == (255,255,255)).all(axis=2))
     
     def EndOperation(self):
+        print("operation ended")
+        self.EnablePanning()
         self.line_coordinates = []
     
     def ActivateSegment(self, segment):
@@ -295,8 +308,6 @@ if __name__ == '__main__':
     png_file_path = r"C:\Users\Michal\kamera"
     text_files_path = r'C:\Users\Michal\kamera'
     missing_txt_files = []
-
-    
 
     files = glob.glob(os.path.join(png_file_path,'*.png'))
     for file in files[0:1]:
