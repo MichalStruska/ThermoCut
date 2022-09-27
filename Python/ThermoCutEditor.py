@@ -24,6 +24,7 @@ class ImageEdit:
         self.line_coordinates = []
         self.cut_line = []
         self.active_outline = []
+        self.segment_names = []
         self.is_cut = False
         
         self.original_segments = dict()
@@ -82,7 +83,6 @@ class ImageEdit:
         if not isExist:        
            os.makedirs(path)
         
-        
     def SaveSubsegment(self):
         subsegment_array = np.zeros((640,480))
         for coords in self.subsegment_points:
@@ -91,13 +91,14 @@ class ImageEdit:
         subsegment_array_rotated = io.RotateImageLeft(subsegment_array)
         original_segment_rotated = io.RotateImageLeft(self.original_segments[self.active_segment_name])
         
-        save_directory = r"C:\Users\Michal\kamera\originals"
+        save_directory = os.path.join(self.text_directory, "originals")
         self.IfFolderNotExistCreateIt(save_directory)
         
         np.savetxt(os.path.join(save_directory, self.mask_names[self.active_segment_name]),
                    original_segment_rotated, fmt='%s', delimiter='\t', encoding = 'utf-8')
         
-        np.savetxt(os.path.join(r"C:\Users\Michal\kamera", self.mask_names[self.active_segment_name]),
+        new_segment_name = input("Give me a segment name: ")
+        np.savetxt(os.path.join(self.text_directory, new_segment_name),
                    subsegment_array_rotated, fmt='%s', delimiter='\t', encoding = 'utf-8')
     
         print("done saving")
@@ -116,6 +117,7 @@ class ImageEdit:
             self.mask_name = s + '_' + segment + "_" + side + '.txt'
             self.mask_names[segment] = self.mask_name
             self.original_segment = np.genfromtxt(os.path.join(self.text_directory,self.mask_name),delimiter='\t')
+            self.segment_names.append(segment)
             
             mask_upright = io.RotateImageRight(self.original_segment)
             self.original_segments[segment] = mask_upright
@@ -134,9 +136,9 @@ class ImageEdit:
         self.original_outlines[segment] = self.filtered_coordinates
         self.active_outlines[segment] = self.filtered_coordinates
      
-    def RedrawOutlines(self):
+    def RedrawOutlines(self, outline_names):
         self.image_overlay = np.zeros(self.image_underlay.shape, np.uint8)
-        for segment in ['A','FA','H','N','S','T','TO']:
+        for segment in outline_names:
             io.ColorTheOutline(self.image_overlay,self.active_outlines[segment])
         
         self.image = cv2.addWeighted(self.image_underlay,0.9,self.image_overlay,0.4,0)
@@ -179,7 +181,7 @@ class ImageEdit:
                     self.subsegment_array[x,y] = 1
            
             self.MemorizeNewSegment(self.subsegment_array, io.CreateOutlineCV(self.image_overlay,self.subsegment_array))
-            self.RedrawOutlines()
+            self.RedrawOutlines([self.active_segment_name])
             self.EndOperation()
         except Exception as e:
             print(e)
@@ -203,7 +205,7 @@ class ImageEdit:
                     self.subsegment_array[segment_point[0], segment_point[1]] = 1
             
             self.MemorizeNewSegment(self.subsegment_array, io.CreateOutlineCV(self.image_overlay,self.subsegment_array))
-            self.RedrawOutlines()
+            self.RedrawOutlines([self.active_segment_name])
             self.EndOperation()
         
         except Exception as e:
@@ -216,7 +218,7 @@ class ImageEdit:
     
     def Cut(self):
         mask = np.zeros((self.image.shape), dtype=np.uint8)
-        points = np.array( [self.line_coordinates], dtype=np.int32 )
+        points = np.array([self.line_coordinates], dtype=np.int32)
         cv2.fillPoly(mask, points, (255,255,255))
         self.values = np.where((mask == (255,255,255)).all(axis=2))
     
@@ -228,6 +230,7 @@ class ImageEdit:
     def ActivateSegment(self, segment):
         self.active_segment_points = io.GetCoordinatesOfSegment(self.active_segments[segment])
         self.active_segment_name = segment
+        self.RedrawOutlines([self.active_segment_name])
     
     def IsDrawingEnabled(self):
         return self.drawing_enabled
@@ -239,7 +242,10 @@ class ImageEdit:
     def EnablePanning(self):
         self.drawing_enabled = False
         win32api.SetCursor(win32api.LoadCursor(0, win32con.IDC_HAND))
-        
+    
+    def RedrawAllSegments(self):
+        self.RedrawOutlines(self.segment_names)
+    
     def EndlessCycle(self):
         self.DrawAllSegments()
         cv2.setMouseCallback('Window',self.MouseEvents)
@@ -278,11 +284,8 @@ class ImageEdit:
             if key == ord("r"):
                 self.ActivateSegment('TO')
             
-            if key == ord("c"):
-                self.CutSegment()
-            
             if key == ord("o"):
-                self.Restart()
+                self.RedrawAllSegments()
             
             if key == ord('z'):
                 self.CutIn()
@@ -305,8 +308,8 @@ class Segment:
         self.segment_mask =  array                  
 
 if __name__ == '__main__':
-    png_file_path = r"C:\Users\Michal\kamera"
-    text_files_path = r'C:\Users\Michal\kamera'
+    png_file_path = r"F:\Ph.D\camera_processing\30"
+    text_files_path = r'F:\Ph.D\camera_processing\30'
     missing_txt_files = []
 
     files = glob.glob(os.path.join(png_file_path,'*.png'))
