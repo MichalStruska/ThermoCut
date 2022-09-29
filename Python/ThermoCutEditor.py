@@ -98,11 +98,21 @@ class ImageEdit:
                    original_segment_rotated, fmt='%s', delimiter='\t', encoding = 'utf-8')
         
         new_segment_name = input("Give me a segment name: ")
-        np.savetxt(os.path.join(self.text_directory, new_segment_name),
+        
+        
+        full_segment_filename = self.GetFullSegmentName(new_segment_name)
+        
+        np.savetxt(os.path.join(self.text_directory, full_segment_filename),
                    subsegment_array_rotated, fmt='%s', delimiter='\t', encoding = 'utf-8')
     
         print("done saving")
+    
+    def GetFullSegmentName(self, new_segment_name):
+        splitted_name = self.mask_names[self.active_segment_name].split('_')
+        full_segment_filename = '_'.join(['_'.join(splitted_name[:3]),new_segment_name, splitted_name[4:]])
         
+        return full_segment_filename
+    
     def DrawAllSegments(self):
         for segment in ['A','FA','H','N','S','T','TO']:
             self.DrawSegment(segment)
@@ -168,7 +178,7 @@ class ImageEdit:
         
         try:
             self.subsegment_points = copy.deepcopy(self.active_segment_points)
-            self.subsegment_array = copy.deepcopy(self.original_segments[self.active_segment_name])
+            self.subsegment_array = copy.deepcopy(self.active_segments[self.active_segment_name])
             
             for x,y in zip(self.values[0], self.values[1]):
                 is_already_in_segment = False
@@ -226,6 +236,7 @@ class ImageEdit:
         print("operation ended")
         self.EnablePanning()
         self.line_coordinates = []
+        self.ActivateSegment(self.active_segment_name)
     
     def ActivateSegment(self, segment):
         self.active_segment_points = io.GetCoordinatesOfSegment(self.active_segments[segment])
