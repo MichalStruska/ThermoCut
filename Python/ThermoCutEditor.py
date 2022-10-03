@@ -18,6 +18,7 @@ class ImageEdit:
         self.text_directory = text_directory
         self.image_path = image_path
         self.drawing_enabled = False
+        self.is_done_after_this = False
         self.image_underlay = cv2.imread(image_path)
         self.image_overlay = np.zeros(self.image_underlay.shape, np.uint8)
         
@@ -109,7 +110,7 @@ class ImageEdit:
     
     def GetFullSegmentName(self, new_segment_name):
         splitted_name = self.mask_names[self.active_segment_name].split('_')
-        full_segment_filename = '_'.join(['_'.join(splitted_name[:3]),new_segment_name, splitted_name[4:]])
+        full_segment_filename = '_'.join(splitted_name[:3]) + '_' + new_segment_name + '_' + splitted_name[4]
         
         return full_segment_filename
     
@@ -304,6 +305,10 @@ class ImageEdit:
             if key == ord('m'):
                 self.CutOut()
             
+            if key == ord('i'):
+                self.is_done_after_this = True
+                print("Will end after this one")
+            
             if key==27:
                 break
 
@@ -319,18 +324,30 @@ class Segment:
         self.segment_mask =  array                  
 
 if __name__ == '__main__':
+    def FindStartingFile(searched_file, file_list):
+        file_names = [os.path.basename(i) for i in file_list]
+        return file_names.index(searched_file)
+    
     png_file_path = r"F:\Ph.D\camera_processing\30"
     text_files_path = r'F:\Ph.D\camera_processing\30'
     missing_txt_files = []
 
     files = glob.glob(os.path.join(png_file_path,'*.png'))
-    for file in files[0:1]:
+    
+    starting_file = input("Name of the starting file: ")
+    
+    starting_index = FindStartingFile(starting_file,files)
+    for file in files[starting_index:]:
         # im = Image.open(file)
         # im.show()
         image_test = cv2.imread(file)
         
         pripony1 = ['A','FA','H','N','S','T','TO']
         image_edit = ImageEdit(file, text_files_path)
+        
+        if image_edit.is_done_after_this == True:
+            break
+        print("done", file)
 
 
 
