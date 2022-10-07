@@ -12,6 +12,7 @@ from scipy.spatial import ConvexHull
 import win32api
 import win32con
 import copy
+import time
 
 class ImageEdit:
     def __init__(self, image_path, text_directory):
@@ -98,7 +99,8 @@ class ImageEdit:
         np.savetxt(os.path.join(save_directory, self.mask_names[self.active_segment_name]),
                    original_segment_rotated, fmt='%s', delimiter='\t', encoding = 'utf-8')
         
-        new_segment_name = input("Give me a segment name: ")
+        # new_segment_name = input("Give me a segment name: ")
+        new_segment_name = self.active_segment_name
         
         
         full_segment_filename = self.GetFullSegmentName(new_segment_name)
@@ -212,7 +214,6 @@ class ImageEdit:
                 
                 if is_already_in_segment == False:
                     self.subsegment_points.append(segment_point)
-                    print(segment_point[0], segment_point[1])
                     self.subsegment_array[segment_point[0], segment_point[1]] = 1
             
             self.MemorizeNewSegment(self.subsegment_array, io.CreateOutlineCV(self.image_overlay,self.subsegment_array))
@@ -257,6 +258,9 @@ class ImageEdit:
     
     def RedrawAllSegments(self):
         self.RedrawOutlines(self.segment_names)
+    
+    def GetActiveSegment(self):
+        print(self.active_segment_name)
     
     def EndlessCycle(self):
         self.DrawAllSegments()
@@ -309,6 +313,9 @@ class ImageEdit:
                 self.is_done_after_this = True
                 print("Will end after this one")
             
+            if key == ord('q'):
+                self.GetActiveSegment()
+            
             if key==27:
                 break
 
@@ -328,8 +335,8 @@ if __name__ == '__main__':
         file_names = [os.path.basename(i) for i in file_list]
         return file_names.index(searched_file)
     
-    png_file_path = r"F:\Ph.D\camera_processing\30"
-    text_files_path = r'F:\Ph.D\camera_processing\30'
+    png_file_path = r"F:\Ph.D\camera_processing\24"
+    text_files_path = r'F:\Ph.D\camera_processing\24'
     missing_txt_files = []
 
     files = glob.glob(os.path.join(png_file_path,'*.png'))
@@ -340,14 +347,20 @@ if __name__ == '__main__':
     for file in files[starting_index:]:
         # im = Image.open(file)
         # im.show()
+        
+        start_time = time.time()
+
         image_test = cv2.imread(file)
         
         pripony1 = ['A','FA','H','N','S','T','TO']
         image_edit = ImageEdit(file, text_files_path)
         
+        end_time = time.time()
+        print("done", file, "elapsed: ", (end_time - start_time)/60)
+        
         if image_edit.is_done_after_this == True:
             break
-        print("done", file)
+        
 
 
 
